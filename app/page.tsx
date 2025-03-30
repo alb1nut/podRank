@@ -4,9 +4,9 @@ import { Headphones, ArrowRight, TrendingUp, Clock, Target } from 'lucide-react'
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className=" min-h-screen bg-background overflow-x-hidden">
       <header className="fixed top-0 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center">
+        <div className="container mx-auto flex h-14 items-center">
           <div className="flex items-center space-x-2">
             <Headphones className="h-6 w-6 text-primary" />
             <span className="font-bold">PodRank</span>
@@ -19,12 +19,12 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="container flex min-h-screen flex-col items-center justify-center space-y-8 py-24">
-        <div className="mx-auto flex max-w-[980px] flex-col items-center gap-4 text-center">
+      <main className="container mx-auto  flex min-h-screen flex-col items-center justify-center space-y-8 py-24">
+        <div className="w-full flex max-w-[980px] flex-col items-center gap-4 text-center">
           <h1 className="text-3xl font-bold leading-tight tracking-tighter md:text-6xl lg:leading-[1.1]">
             Find the perfect business podcast episode in seconds
           </h1>
-          <p className="max-w-[750px] text-lg text-muted-foreground sm:text-xl">
+          <p className="w-full max-w-[750px] text-lg text-muted-foreground sm:text-xl">
             PodRank helps busy professionals discover the most relevant business content
             based on their specific needs and interests.
           </p>
@@ -35,7 +35,7 @@ export default function Home() {
           </Link>
         </div>
 
-        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+        <div className=" grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
           <div className="flex flex-col items-center space-y-4 p-6 text-center">
             <div className="rounded-full bg-primary/10 p-4">
               <TrendingUp className="h-6 w-6 text-primary" />

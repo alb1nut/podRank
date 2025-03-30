@@ -38,8 +38,12 @@
     border-color: hsl(var(--border));
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground min-h-screen flex flex-col;
   }
+}
+/* Add a container class */
+.main-container {
+  @apply w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8;
 }
 
 @keyframes bubble-bounce {
