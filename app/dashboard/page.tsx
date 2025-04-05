@@ -3,10 +3,26 @@
 import { useState, useRef, useEffect } from 'react'
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Headphones, Youtube, AlignJustify as Spotify, TrendingUp, Clock, Star, Play, Users, Award } from 'lucide-react'
+import { Headphones, Youtube, AlignJustify as Spotify, TrendingUp, Clock, Star, Play, Users, Award, Bell, ChevronDown } from 'lucide-react'
 import Link from 'next/link'
 import { searchPodcasts } from '@/lib/api'
 import Image from 'next/image'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Input } from "@/components/ui/input"
 
 interface PodcastEpisode {
   id: string;
@@ -28,6 +44,13 @@ interface PodRankPick {
   description: string;
   platform: string;
   platformIcon: React.ReactNode;
+  isSponsored?: boolean;
+}
+
+const WEEKLY_THEMES = {
+  Monday: { name: "Motivation Monday", color: "bg-blue-500" },
+  Sunday: { name: "Startup Sunday", color: "bg-green-500" },
+  Friday: { name: "Finance Friday", color: "bg-yellow-500" }
 }
 
 const SEARCH_BUBBLES = [
@@ -77,6 +100,7 @@ const PODRANK_PICKS: PodRankPick[] = [
     description: "Unlock the mindset secrets of top performers",
     platform: "Spotify",
     platformIcon: <Spotify className="h-4 w-4 text-green-500" />,
+    isSponsored: true
   },
   {
     id: 2,
@@ -98,31 +122,50 @@ const PODRANK_PICKS: PodRankPick[] = [
   }
 ]
 
+const AFFILIATE_BASE_URLS = {
+  spotify: "https://open.spotify.com/show/",
+  youtube: "https://www.youtube.com/watch?v="
+}
+
 export default function DashboardPage() {
   const [selectedBubble, setSelectedBubble] = useState<string | null>(null)
   const [episodes, setEpisodes] = useState<PodcastEpisode[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showAd, setShowAd] = useState(false)
+  const [showEmailCapture, setShowEmailCapture] = useState(false)
+  const [email, setEmail] = useState("")
+  const [canSkipAd, setCanSkipAd] = useState(false)
   const adTimer = useRef<NodeJS.Timeout | null>(null)
+  const skipTimer = useRef<NodeJS.Timeout | null>(null)
   const forceAdMinTime = useRef(true)
   const adStartTime = useRef<number>(0)
+  const [currentTheme, setCurrentTheme] = useState<string>("")
+
+  useEffect(() => {
+    const today = new Date().toLocaleDateString('en-us', { weekday: 'long' });
+    const dayName = today.split(',')[0];
+    setCurrentTheme(WEEKLY_THEMES[dayName as keyof typeof WEEKLY_THEMES]?.name || "");
+  }, [])
 
   const handleBubbleClick = async (bubbleId: string) => {
     adStartTime.current = Date.now()
     setSelectedBubble(bubbleId)
     setIsLoading(true)
     setShowAd(true)
+    setCanSkipAd(false)
     setError(null)
     forceAdMinTime.current = true
 
-    // Start 5 second minimum timer
-    adTimer.current = setTimeout(() => {
-      forceAdMinTime.current = false
-      if (!isLoading) {
-        setShowAd(false)
-      }
+    // Set timer for skip button to appear after 5 seconds
+    skipTimer.current = setTimeout(() => {
+      setCanSkipAd(true)
     }, 5000)
+
+    // Set timer for auto-close after 15 seconds
+    adTimer.current = setTimeout(() => {
+      setShowAd(false)
+    }, 15000)
 
     try {
       const results = await searchPodcasts(bubbleId)
@@ -132,15 +175,38 @@ export default function DashboardPage() {
       console.error('Error fetching podcasts:', err)
     } finally {
       setIsLoading(false)
-      // Only hide ad if minimum time has elapsed
-      if (!forceAdMinTime.current) {
-        setShowAd(false)
-      }
     }
   }
 
-  const handleListenNow = (link: string) => {
-    window.open(link, '_blank')
+  useEffect(() => {
+    return () => {
+      if (adTimer.current) clearTimeout(adTimer.current)
+      if (skipTimer.current) clearTimeout(skipTimer.current)
+    }
+  }, [])
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (!localStorage.getItem('emailCaptured')) {
+        setShowEmailCapture(true)
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [])
+
+  const handleEmailSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    // Here you would typically send the email to your backend
+    localStorage.setItem('emailCaptured', 'true')
+    setShowEmailCapture(false)
+  }
+
+  const handleListenNow = (link: string, platform: string) => {
+    // Add affiliate tracking parameters
+    const affiliateLink = `${AFFILIATE_BASE_URLS[platform.toLowerCase() as keyof typeof AFFILIATE_BASE_URLS]}${link}?ref=podrank`
+    window.open(affiliateLink, '_blank')
   }
 
   const getPlatformIcon = (platform: string) => {
@@ -148,15 +214,6 @@ export default function DashboardPage() {
       ? <Spotify className="h-5 w-5 text-green-500" />
       : <Youtube className="h-5 w-5 text-red-500" />
   }
-
-  // Clean up timer on unmount
-  useEffect(() => {
-    return () => {
-      if (adTimer.current) {
-        clearTimeout(adTimer.current)
-      }
-    }
-  }, [])
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
@@ -166,10 +223,44 @@ export default function DashboardPage() {
             <Headphones className="h-6 w-6 text-primary" />
             <span className="font-bold">PodRank</span>
           </div>
+          <div className="flex items-center space-x-4">
+            <Button variant="ghost" className="text-sm" onClick={() => setShowEmailCapture(true)}>
+              <Bell className="h-4 w-4 mr-2" />
+              Get Notified
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>
+                  <div className="flex items-center">
+                    <span className="bg-primary/10 text-primary text-xs px-2 py-1 rounded-full">Guest</span>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>
+                  <Link href="/auth" className="flex items-center">
+                    Sign In
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowEmailCapture(true)}>
+                  Get Weekly Updates
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </header>
 
-      {/* Ad Overlay - guaranteed 5 second display */}
+      {currentTheme && (
+        <div className={`w-full py-2 text-center text-white ${WEEKLY_THEMES[currentTheme.split(' ')[0] as keyof typeof WEEKLY_THEMES]?.color}`}>
+          {currentTheme} - Discover Today&apos;s Special Picks! 🎧
+        </div>
+      )}
+
       {showAd && (
         <div className="fixed inset-0 bg-background/95 z-50 flex items-center justify-center">
           <div className="max-w-md w-full bg-white rounded-xl shadow-2xl overflow-hidden border border-gray-200 animate-in fade-in">
@@ -182,26 +273,52 @@ export default function DashboardPage() {
                 priority
               />
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-                <span className="text-white text-sm font-medium">Sponsored Content</span>
+                <span className="text-white text-sm font-medium">Finding your perfect podcast...</span>
                 <span className="text-white text-sm block mt-1">
-                  Loading... {Math.max(0, Math.ceil((5000 - (Date.now() - adStartTime.current)) / 1000))}s
+                  {Math.max(0, Math.ceil((15000 - (Date.now() - adStartTime.current)) / 1000))}s
                 </span>
               </div>
+              {canSkipAd && (
+                <Button
+                  className="absolute top-4 right-4 bg-black/50 hover:bg-black/70 text-white"
+                  onClick={() => setShowAd(false)}
+                >
+                  Skip Ad
+                </Button>
+              )}
             </div>
             <div className="p-6 text-center space-y-4">
-              <h3 className="text-xl font-bold">Finding Your Perfect Podcast</h3>
+              <h3 className="text-xl font-bold">Download Our Business Podcast Cheat Sheet</h3>
               <p className="text-muted-foreground">
-                We&apos;re analyzing thousands of episodes to find your ideal match...
+                Get our curated list of top business podcasts while we find your perfect match!
               </p>
-              <div className="flex justify-center pt-2">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
-              </div>
+              <Button className="w-full">Download Now</Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Main Content */}
+      <Dialog open={showEmailCapture} onOpenChange={setShowEmailCapture}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Want the top business podcast pick in your inbox every Monday?</DialogTitle>
+            <DialogDescription>
+              Join thousands of professionals getting weekly podcast recommendations
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEmailSubmit} className="space-y-4">
+            <Input
+              type="email"
+              placeholder="Enter your email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+            <Button type="submit" className="w-full">Get Weekly Updates</Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {!showAd && (
         <div className="container mx-auto pt-20 pb-10 px-4 sm:px-6">
           <div className="flex flex-col lg:flex-row gap-8">
@@ -226,6 +343,12 @@ export default function DashboardPage() {
                     {bubble.label}
                   </Button>
                 ))}
+              </div>
+
+              <div className="text-center mb-8">
+                <Button variant="outline" onClick={() => setShowEmailCapture(true)}>
+                  Get a weekly podcast prescription →
+                </Button>
               </div>
 
               {error && (
@@ -280,7 +403,7 @@ export default function DashboardPage() {
                               </div>
                               <Button 
                                 className="mt-6 bg-primary hover:bg-primary/90 w-full"
-                                onClick={() => handleListenNow(episode.link)}
+                                onClick={() => handleListenNow(episode.link, episode.platform)}
                               >
                                 <Play className="h-4 w-4 mr-2" /> Listen Now
                               </Button>
@@ -315,8 +438,15 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4">
                   {PODRANK_PICKS.map((pick) => (
                     <Link href={`/episode/${pick.id}`} key={pick.id}>
-                      <Card className="group overflow-hidden transition-all duration-300 hover:ring-2 hover:ring-primary/20 hover:shadow-lg h-full">
+                      <Card className={`group overflow-hidden transition-all duration-300 hover:ring-2 hover:ring-primary/20 hover:shadow-lg h-full ${
+                        pick.isSponsored ? 'border-2 border-primary' : ''
+                      }`}>
                         <CardContent className="p-4">
+                          {pick.isSponsored && (
+                            <span className="inline-block px-2 py-1 bg-primary/10 text-primary text-xs rounded-full mb-2">
+                              Sponsored
+                            </span>
+                          )}
                           <div className="relative aspect-[16/9] rounded-md overflow-hidden mb-3">
                             <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent group-hover:from-black/70 transition-all duration-300"></div>
                             <Image
