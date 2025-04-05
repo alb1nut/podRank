@@ -1,7 +1,7 @@
 "use client"; 
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Headphones, ArrowRight, TrendingUp, Star, Users, Award, Play } from 'lucide-react'
+import { Headphones, ArrowRight, TrendingUp, Star, Users, Award, Play,  Clock, Target } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -229,6 +229,38 @@ export default function Home() {
             </div>
           </DialogContent>
         </Dialog>
+
+        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="flex flex-col items-center space-y-4 p-6 text-center">
+            <div className="rounded-full bg-primary/10 p-4">
+              <TrendingUp className="h-6 w-6 text-primary" />
+            </div>
+            <h3 className="font-semibold">Trending Topics</h3>
+            <p className="text-muted-foreground">
+              Stay updated with the latest business trends and insights
+            </p>
+          </div>
+
+          <div className="flex flex-col items-center space-y-4 p-6 text-center">
+            <div className="rounded-full bg-primary/10 p-4">
+              <Clock className="h-6 w-6 text-primary" />
+            </div>
+            <h3 className="font-semibold">Save Time</h3>
+            <p className="text-muted-foreground">
+              Find relevant content quickly without endless searching
+            </p>
+          </div>
+
+          <div className="flex flex-col items-center space-y-4 p-6 text-center">
+            <div className="rounded-full bg-primary/10 p-4">
+              <Target className="h-6 w-6 text-primary" />
+            </div>
+            <h3 className="font-semibold">Personalized Recommendations</h3>
+            <p className="text-muted-foreground">
+              Get episode suggestions based on your mood and needs
+            </p>
+          </div>
+        </div>
       </main>
     </div>
   )

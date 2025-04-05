@@ -77,3 +77,42 @@
 .float-animation {
   animation: float 3s ease-in-out infinite;
 }
+
+/* Add to your global CSS */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Add to your global CSS */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-default::-webkit-scrollbar {
+  display: block;
+  width: 6px;
+}
+
+.scrollbar-default::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 3px;
+}
+
+.smooth-scroll {
+  scroll-behavior: smooth;
+}

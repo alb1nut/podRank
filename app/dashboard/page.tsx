@@ -1,19 +1,19 @@
-"use client"
+"use client";
 
-import { useState, useRef, useEffect } from 'react'
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Headphones, Youtube, AlignJustify as Spotify, TrendingUp, Clock, Star, Play, Users, Award, Bell, ChevronDown } from 'lucide-react'
-import Link from 'next/link'
-import { searchPodcasts } from '@/lib/api'
-import Image from 'next/image'
+import { useState, useRef, useEffect } from 'react';
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Headphones, Youtube, AlignJustify as Spotify, TrendingUp, Clock, Star, Play, Users, Award, Bell, ChevronDown } from 'lucide-react';
+import Link from 'next/link';
+import { searchPodcasts } from '@/lib/api';
+import Image from 'next/image';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,8 +21,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 
 interface PodcastEpisode {
   id: string;
@@ -51,7 +51,7 @@ const WEEKLY_THEMES = {
   Monday: { name: "Motivation Monday", color: "bg-blue-500" },
   Sunday: { name: "Startup Sunday", color: "bg-green-500" },
   Friday: { name: "Finance Friday", color: "bg-yellow-500" }
-}
+};
 
 const SEARCH_BUBBLES = [
   { 
@@ -89,7 +89,7 @@ const SEARCH_BUBBLES = [
     color: 'bg-pink-500 hover:bg-pink-600', 
     icon: <Award className="w-4 h-4 mr-2" />
   }
-]
+];
 
 const PODRANK_PICKS: PodRankPick[] = [
   {
@@ -109,7 +109,7 @@ const PODRANK_PICKS: PodRankPick[] = [
     thumbnail: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800&auto=format&fit=crop&q=60",
     description: "Navigating the evolving workplace landscape",
     platform: "YouTube",
-    platformIcon: <Youtube className="h-4 w-4 text-red-500" />,
+    platformIcon: <Youtube className="h-4 w-4 text-red-500" />
   },
   {
     id: 3,
@@ -120,100 +120,131 @@ const PODRANK_PICKS: PodRankPick[] = [
     platform: "Spotify",
     platformIcon: <Spotify className="h-4 w-4 text-green-500" />,
   }
-]
+];
 
 const AFFILIATE_BASE_URLS = {
   spotify: "https://open.spotify.com/show/",
   youtube: "https://www.youtube.com/watch?v="
+};
+
+function CountdownTimer({
+  startTime,
+  duration,
+  onComplete
+}: {
+  startTime: number;
+  duration: number;
+  onComplete: () => void;
+}) {
+  const [remainingSeconds, setRemainingSeconds] = useState(
+    Math.max(0, Math.ceil((duration - (Date.now() - startTime)) / 1000))
+  );
+
+  useEffect(() => {
+    if (remainingSeconds <= 0) {
+      onComplete();
+      return;
+    }
+
+    const interval = setInterval(() => {
+      const newRemaining = Math.max(0, Math.ceil((duration - (Date.now() - startTime)) / 1000));
+      setRemainingSeconds(newRemaining);
+      
+      if (newRemaining <= 0) {
+        clearInterval(interval);
+        onComplete();
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [startTime, duration, onComplete]);
+
+  return <span className="text-white text-sm block mt-1">{remainingSeconds}s</span>;
 }
 
 export default function DashboardPage() {
-  const [selectedBubble, setSelectedBubble] = useState<string | null>(null)
-  const [episodes, setEpisodes] = useState<PodcastEpisode[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [showAd, setShowAd] = useState(false)
-  const [showEmailCapture, setShowEmailCapture] = useState(false)
-  const [email, setEmail] = useState("")
-  const [canSkipAd, setCanSkipAd] = useState(false)
-  const adTimer = useRef<NodeJS.Timeout | null>(null)
-  const skipTimer = useRef<NodeJS.Timeout | null>(null)
-  const forceAdMinTime = useRef(true)
-  const adStartTime = useRef<number>(0)
-  const [currentTheme, setCurrentTheme] = useState<string>("")
+  const [selectedBubble, setSelectedBubble] = useState<string | null>(null);
+  const [episodes, setEpisodes] = useState<PodcastEpisode[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showAd, setShowAd] = useState(false);
+  const [showEmailCapture, setShowEmailCapture] = useState(false);
+  const [email, setEmail] = useState("");
+  const [canSkipAd, setCanSkipAd] = useState(false);
+  const adTimer = useRef<NodeJS.Timeout | null>(null);
+  const skipTimer = useRef<NodeJS.Timeout | null>(null);
+  const forceAdMinTime = useRef(true);
+  const adStartTime = useRef<number>(0);
+  const [currentTheme, setCurrentTheme] = useState<string>("");
 
   useEffect(() => {
     const today = new Date().toLocaleDateString('en-us', { weekday: 'long' });
     const dayName = today.split(',')[0];
     setCurrentTheme(WEEKLY_THEMES[dayName as keyof typeof WEEKLY_THEMES]?.name || "");
-  }, [])
+  }, []);
 
   const handleBubbleClick = async (bubbleId: string) => {
-    adStartTime.current = Date.now()
-    setSelectedBubble(bubbleId)
-    setIsLoading(true)
-    setShowAd(true)
-    setCanSkipAd(false)
-    setError(null)
-    forceAdMinTime.current = true
+    adStartTime.current = Date.now();
+    setSelectedBubble(bubbleId);
+    setIsLoading(true);
+    setShowAd(true);
+    setCanSkipAd(false);
+    setError(null);
+    forceAdMinTime.current = true;
 
-    // Set timer for skip button to appear after 5 seconds
     skipTimer.current = setTimeout(() => {
-      setCanSkipAd(true)
-    }, 5000)
+      setCanSkipAd(true);
+    }, 5000);
 
-    // Set timer for auto-close after 15 seconds
     adTimer.current = setTimeout(() => {
-      setShowAd(false)
-    }, 15000)
+      setShowAd(false);
+    }, 15000);
 
     try {
-      const results = await searchPodcasts(bubbleId)
-      setEpisodes(results)
+      const results = await searchPodcasts(bubbleId);
+      setEpisodes(results);
     } catch (err) {
-      setError('Failed to fetch podcasts. Please try again.')
-      console.error('Error fetching podcasts:', err)
+      setError('Failed to fetch podcasts. Please try again.');
+      console.error('Error fetching podcasts:', err);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
     return () => {
-      if (adTimer.current) clearTimeout(adTimer.current)
-      if (skipTimer.current) clearTimeout(skipTimer.current)
-    }
-  }, [])
+      if (adTimer.current) clearTimeout(adTimer.current);
+      if (skipTimer.current) clearTimeout(skipTimer.current);
+    };
+  }, []);
 
   useEffect(() => {
     const handleBeforeUnload = () => {
       if (!localStorage.getItem('emailCaptured')) {
-        setShowEmailCapture(true)
+        setShowEmailCapture(true);
       }
-    }
+    };
 
-    window.addEventListener('beforeunload', handleBeforeUnload)
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [])
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
 
   const handleEmailSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    // Here you would typically send the email to your backend
-    localStorage.setItem('emailCaptured', 'true')
-    setShowEmailCapture(false)
-  }
+    e.preventDefault();
+    localStorage.setItem('emailCaptured', 'true');
+    setShowEmailCapture(false);
+  };
 
   const handleListenNow = (link: string, platform: string) => {
-    // Add affiliate tracking parameters
-    const affiliateLink = `${AFFILIATE_BASE_URLS[platform.toLowerCase() as keyof typeof AFFILIATE_BASE_URLS]}${link}?ref=podrank`
-    window.open(affiliateLink, '_blank')
-  }
+    const affiliateLink = `${AFFILIATE_BASE_URLS[platform.toLowerCase() as keyof typeof AFFILIATE_BASE_URLS]}${link}?ref=podrank`;
+    window.open(affiliateLink, '_blank');
+  };
 
   const getPlatformIcon = (platform: string) => {
     return platform.toLowerCase() === 'spotify' 
       ? <Spotify className="h-5 w-5 text-green-500" />
-      : <Youtube className="h-5 w-5 text-red-500" />
-  }
+      : <Youtube className="h-5 w-5 text-red-500" />;
+  };
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
@@ -274,9 +305,11 @@ export default function DashboardPage() {
               />
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
                 <span className="text-white text-sm font-medium">Finding your perfect podcast...</span>
-                <span className="text-white text-sm block mt-1">
-                  {Math.max(0, Math.ceil((15000 - (Date.now() - adStartTime.current)) / 1000))}s
-                </span>
+                <CountdownTimer 
+                  startTime={adStartTime.current} 
+                  duration={15000}
+                  onComplete={() => setShowAd(false)}
+                />
               </div>
               {canSkipAd && (
                 <Button
@@ -430,12 +463,12 @@ export default function DashboardPage() {
             </main>
 
             <aside className="w-full lg:w-80 shrink-0">
-              <div className="sticky top-20">
-                <div className="flex items-center space-x-2 mb-6">
+              <div className="sticky top-20 h-[calc(100vh-5rem)] overflow-y-auto scrollbar-hide hover:scrollbar-default pr-1 smooth-scroll">
+                <div className="flex items-center space-x-2 mb-6 pr-3">
                   <Award className="h-5 w-5 text-primary" />
                   <h2 className="text-xl font-bold">PodRank&apos;s Pick 🎧</h2>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4 pr-3 pb-4">
                   {PODRANK_PICKS.map((pick) => (
                     <Link href={`/episode/${pick.id}`} key={pick.id}>
                       <Card className={`group overflow-hidden transition-all duration-300 hover:ring-2 hover:ring-primary/20 hover:shadow-lg h-full ${
@@ -480,5 +513,5 @@ export default function DashboardPage() {
         </div>
       )}
     </div>
-  )
+  );
 }
