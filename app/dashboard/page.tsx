@@ -176,6 +176,13 @@ export default function DashboardPage() {
   const forceAdMinTime = useRef(true);
   const adStartTime = useRef<number>(0);
   const [currentTheme, setCurrentTheme] = useState<string>("");
+  const [userName, setUserName] = useState(""); // Replace with actual user data
+
+  useEffect(() => {
+    if (userName == "") {
+      setUserName("Albert Dovlo");
+    }
+  },[userName])
 
   useEffect(() => {
     const today = new Date().toLocaleDateString('en-us', { weekday: 'long' });
@@ -249,11 +256,29 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
       <header className="fixed top-0 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50">
-        <div className="container mx-auto flex h-14 items-center justify-between px-4">
-          <div className="flex items-center space-x-2">
+        <div className="container mx-auto flex h-16 items-center justify-between px-4">
+          <div className="flex items-center space-x-4">
             <Headphones className="h-6 w-6 text-primary" />
-            <span className="font-bold">PodRank</span>
+            
+            {/* Animated Welcome Message in Header */}
+            {userName && (
+              <div className="hidden md:flex items-center">
+                <span className="text-sm text-muted-foreground mr-2">Welcome,</span>
+                <div className="welcome-name-container">
+                  {userName.split("").map((letter, index) => (
+                    <span 
+                      key={index}
+                      className="welcome-name-letter"
+                      style={{ animationDelay: `${index * 0.05}s` }}
+                    >
+                      {letter === " " ? "\u00A0" : letter}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
+
           <div className="flex items-center space-x-4">
             <Button variant="ghost" className="text-sm" onClick={() => setShowEmailCapture(true)}>
               <Bell className="h-4 w-4 mr-2" />
@@ -287,7 +312,7 @@ export default function DashboardPage() {
       </header>
 
       {currentTheme && (
-        <div className={`w-full py-2 text-center text-white ${WEEKLY_THEMES[currentTheme.split(' ')[0] as keyof typeof WEEKLY_THEMES]?.color}`}>
+        <div className={`w-full py-2 text-center text-white ${WEEKLY_THEMES[currentTheme.split(' ')[0] as keyof typeof WEEKLY_THEMES]?.color} mt-16`}>
           {currentTheme} - Discover Today&apos;s Special Picks! 🎧
         </div>
       )}
@@ -353,7 +378,7 @@ export default function DashboardPage() {
       </Dialog>
 
       {!showAd && (
-        <div className="container mx-auto pt-20 pb-10 px-4 sm:px-6">
+        <div className="container mx-auto pt-24 pb-10 px-4 sm:px-6">
           <div className="flex flex-col lg:flex-row gap-8">
             <main className="flex-1">
               <div className="text-center mb-8">
@@ -463,7 +488,7 @@ export default function DashboardPage() {
             </main>
 
             <aside className="w-full lg:w-80 shrink-0">
-              <div className="sticky top-20 h-[calc(100vh-5rem)] overflow-y-auto scrollbar-hide hover:scrollbar-default pr-1 smooth-scroll">
+              <div className="sticky top-24 h-[calc(100vh-6rem)] overflow-y-auto scrollbar-hide hover:scrollbar-default pr-1">
                 <div className="flex items-center space-x-2 mb-6 pr-3">
                   <Award className="h-5 w-5 text-primary" />
                   <h2 className="text-xl font-bold">PodRank&apos;s Pick 🎧</h2>
