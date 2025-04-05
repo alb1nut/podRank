@@ -157,7 +157,7 @@ function CountdownTimer({
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [startTime, duration, onComplete]);
+  }, [startTime, duration, onComplete, remainingSeconds]);
 
   return <span className="text-white text-sm block mt-1">{remainingSeconds}s</span>;
 }
@@ -269,7 +269,6 @@ export default function DashboardPage() {
                     <span 
                       key={index}
                       className="welcome-name-letter"
-                      style={{ animationDelay: `${index * 0.05}s` }}
                     >
                       {letter === " " ? "\u00A0" : letter}
                     </span>
