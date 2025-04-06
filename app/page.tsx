@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog"
 import Image from 'next/image'
 import { useState } from 'react'
+import customLoader from '@/lib/imageLoader';
 
 const PREVIEW_BUBBLES = [
   { 
@@ -159,6 +160,7 @@ export default function Home() {
                     <div className="relative aspect-video">
                       <div className="absolute inset-0 bg-gradient-to-br from-black/20 to-transparent z-10" />
                       <Image 
+                        loader={customLoader}
                         src={podcast.thumbnail} 
                         alt={podcast.title}
                         width={1200} 

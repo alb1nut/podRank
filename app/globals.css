@@ -117,3 +117,24 @@
   scroll-behavior: smooth;
 }
 
+
+/* Welcome message animation */
+.welcome-name-container {
+  @apply flex items-center text-lg font-semibold text-primary;
+}
+
+.welcome-name-letter {
+  @apply inline-block;
+  animation: letter-wave 1.5s infinite;
+  animation-delay: calc(var(--letter-index) * 0.1s);
+}
+
+@keyframes letter-wave {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+    color: hsl(var(--primary));
+  }
+}

@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import customLoader from '@/lib/imageLoader';
 
 interface PodcastEpisode {
   id: string;
@@ -123,8 +124,8 @@ const PODRANK_PICKS: PodRankPick[] = [
 ];
 
 const AFFILIATE_BASE_URLS = {
-  spotify: "https://open.spotify.com/show/",
-  youtube: "https://www.youtube.com/watch?v="
+  spotify: "https://open.spotify.com/",
+  youtube: "https://www.youtube.com/"
 };
 
 function CountdownTimer({
@@ -243,8 +244,37 @@ export default function DashboardPage() {
   };
 
   const handleListenNow = (link: string, platform: string) => {
-    const affiliateLink = `${AFFILIATE_BASE_URLS[platform.toLowerCase() as keyof typeof AFFILIATE_BASE_URLS]}${link}?ref=podrank`;
-    window.open(affiliateLink, '_blank');
+    try {
+      let affiliateUrl = link;
+      
+      // Only modify if it's not already an affiliate link
+      if (!link.includes('?ref=podrank')) {
+        if (platform.toLowerCase() === 'spotify') {
+          // Extract episode ID from various Spotify URL formats
+          const episodeId = link.includes('episode/')
+            ? link.split('episode/')[1]?.split('?')[0]
+            : link.split('spotify:episode:')[1];
+            
+          affiliateUrl = `${AFFILIATE_BASE_URLS.spotify}episode/${episodeId}?ref=podrank`;
+        } 
+        else if (platform.toLowerCase() === 'youtube') {
+          // Extract video ID from various YouTube URL formats
+          const videoId = link.includes('v=')
+            ? link.split('v=')[1]?.split('&')[0]
+            : link.includes('youtu.be/')
+              ? link.split('youtu.be/')[1]?.split('?')[0]
+              : link;
+              
+          affiliateUrl = `${AFFILIATE_BASE_URLS.youtube}watch?v=${videoId}?ref=podrank`;
+        }
+      }
+  
+      window.open(affiliateUrl, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      console.error('Error constructing affiliate link:', error);
+      // Fallback to original link if something goes wrong
+      window.open(link, '_blank', 'noopener,noreferrer');
+    }
   };
 
   const getPlatformIcon = (platform: string) => {
@@ -311,7 +341,7 @@ export default function DashboardPage() {
       </header>
 
       {currentTheme && (
-        <div className={`w-full py-2 text-center text-white ${WEEKLY_THEMES[currentTheme.split(' ')[0] as keyof typeof WEEKLY_THEMES]?.color} mt-16`}>
+        <div className={`w-full py-2 text-center text-black ${WEEKLY_THEMES[currentTheme.split(' ')[0] as keyof typeof WEEKLY_THEMES]?.color} mt-16`}>
           {currentTheme} - Discover Today&apos;s Special Picks! 🎧
         </div>
       )}
@@ -321,9 +351,11 @@ export default function DashboardPage() {
           <div className="max-w-md w-full bg-white rounded-xl shadow-2xl overflow-hidden border border-gray-200 animate-in fade-in">
             <div className="relative aspect-video bg-gray-100">
               <Image
+                loader={customLoader}
                 src="https://images.unsplash.com/photo-1589561253898-768105ca91a8?w=800&auto=format&fit=crop&q=60"
                 alt="Sponsored Content"
                 fill
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 className="object-cover"
                 priority
               />
@@ -425,11 +457,16 @@ export default function DashboardPage() {
                             <div className="relative aspect-video">
                               <div className="absolute inset-0 bg-gradient-to-br from-black/20 to-transparent z-10"></div>
                               <Image 
-                                src={episode.thumbnail} 
+                                src={`https://i.ytimg.com/vi/${episode.id}/hqdefault.jpg`}
                                 alt={episode.title}
                                 width={1200} 
                                 height={630} 
                                 className="w-full h-full object-cover"
+                                loader={customLoader} // Optional if configured in next.config.js
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = '/default-podcast.jpg';
+                                }}
+                                unoptimized
                               />
                               <div className="absolute top-4 left-4 z-20 flex items-center space-x-2 bg-black/40 rounded-full px-3 py-1 text-white">
                                 {getPlatformIcon(episode.platform)}
@@ -507,6 +544,7 @@ export default function DashboardPage() {
                           <div className="relative aspect-[16/9] rounded-md overflow-hidden mb-3">
                             <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent group-hover:from-black/70 transition-all duration-300"></div>
                             <Image
+                              loader={customLoader}
                               src={pick.thumbnail} 
                               alt={pick.title}
                               width={1200} 
