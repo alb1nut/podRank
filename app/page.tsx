@@ -10,8 +10,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import Image from 'next/image'
-import { useState } from 'react'
+import {  useState } from 'react'
 import customLoader from '@/lib/imageLoader';
+import { supabase } from '@/lib/supabaseClient';
+import { useToast } from '@/hooks/use-toast';
+// import { useRouter } from 'next/navigation';
+// import { useAppUtils } from '@/context/AppUtils';
 
 const PREVIEW_BUBBLES = [
   { 
@@ -59,6 +63,10 @@ export default function Home() {
   const [selectedBubble, setSelectedBubble] = useState<string | null>(null)
   const [showSignupModal, setShowSignupModal] = useState(false)
   const [showDemoResults, setShowDemoResults] = useState(false)
+  // const router = useRouter();
+  // const { isLoggedIn } = useAppUtils();
+
+  const { toast } = useToast();
 
   const handleBubbleClick = (bubbleId: string) => {
     setSelectedBubble(bubbleId)
@@ -67,6 +75,26 @@ export default function Home() {
 
   const handleListenClick = () => {
     setShowSignupModal(true)
+  }
+
+  // useEffect(()=>{
+  //   router.push('/dashboard');
+  // },[isLoggedIn,router])
+
+  const handleSocialOauth = async (provider : "google") =>{
+    const { error} = await supabase.auth.signInWithOAuth({
+      provider,
+      options:{
+        redirectTo: `${window.location.origin}/dashboard`
+      }
+    });
+    if(error){
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to Login with Google ",
+      });
+    }
   }
 
   return (
@@ -79,9 +107,9 @@ export default function Home() {
             <span className="font-bold">PodRank</span>
           </div>
           <div className="flex flex-1 items-center justify-end">
-            <Link href="/dashboard">
-              <Button>Sign In</Button>
-            </Link>
+            {/* <Link > */}
+              <Button onClick={() => handleSocialOauth('google')}>Sign In with Google</Button>
+            {/* </Link> */}
           </div>
         </div>
       </header>

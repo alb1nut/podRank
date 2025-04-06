@@ -7,6 +7,9 @@ import { Headphones, Youtube, AlignJustify as Spotify, TrendingUp, Clock, Star, 
 import Link from 'next/link';
 import { searchPodcasts } from '@/lib/api';
 import Image from 'next/image';
+import { supabase } from '@/lib/supabaseClient';
+// import {useAppUtils} from "@/context/AppUtils"
+
 import {
   Dialog,
   DialogContent,
@@ -24,6 +27,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import customLoader from '@/lib/imageLoader';
+import { useAppUtils } from '@/context/AppUtils';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import { toast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
+
 
 interface PodcastEpisode {
   id: string;
@@ -177,13 +185,69 @@ export default function DashboardPage() {
   const forceAdMinTime = useRef(true);
   const adStartTime = useRef<number>(0);
   const [currentTheme, setCurrentTheme] = useState<string>("");
-  const [userName, setUserName] = useState(""); // Replace with actual user data
+  const router = useRouter();
+  // const [userName, setUserName] = useState(""); // Replace with actual user data
+    // Calling the hook inside a component
+    const { isLoggedIn, setIsLoggedIn,setAuthToken } = useAppUtils();
+    const [userId, setUserId] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (userName == "") {
-      setUserName("Albert Dovlo");
+
+
+    const userName = isLoggedIn ? "Albert Dovlo" : ""; // Replace with actual user data
+    useEffect(()=> {
+      const handleLoginSession  = async() =>{
+        const {data,error} = await supabase.auth.getSession()
+          if(error){
+            toast({
+              variant: "destructive",
+              title: "Error",
+              description: "Failed to get User Data ",
+            });
+            router.push("/")
+            return;
+          }
+          if(data.session?.access_token){
+            setAuthToken(data.session.access_token);
+            setUserId(data.session.user.id);
+            console.log('====================================');
+            console.log(userId);
+            console.log('====================================');
+            localStorage.setItem("access_token",data.session?.access_token);
+            setIsLoggedIn(true);
+            toast({
+              title: "Success",
+              description: "Logged In Successfully",
+            });
+            router.push("/dashboard"); // Only redirect if logged in
+          }else{
+             // No active session found
+            router.push("/");
+          }
+      }
+
+      handleLoginSession()
+    },[isLoggedIn,router, setAuthToken, setIsLoggedIn,userId]);
+
+
+    // useEffect(()=>{
+    //   const token = localStorage.getItem("access_token");
+    //   if(token){
+    //     setAuthToken(token)
+    //     setIsLoggedIn(true)
+    //   }
+    // })
+
+    const handleUserLogout = async () =>{
+      localStorage.removeItem("access_token");
+      setIsLoggedIn(false);
+      setAuthToken(null)
+      await supabase.auth.signOut()
+      toast({
+        title: "Success",
+        description: "Logged Out Successfully",
+      });
+      router.push("/")
     }
-  },[userName])
 
   useEffect(() => {
     const today = new Date().toLocaleDateString('en-us', { weekday: 'long' });
@@ -284,6 +348,7 @@ export default function DashboardPage() {
   };
 
   return (
+    <ProtectedRoute>
     <div className="min-h-screen bg-background overflow-x-hidden">
       <header className="fixed top-0 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
@@ -322,18 +387,33 @@ export default function DashboardPage() {
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>
                   <div className="flex items-center">
-                    <span className="bg-primary/10 text-primary text-xs px-2 py-1 rounded-full">Guest</span>
+                    <span className={`bg-primary/10 text-primary text-xs px-2 py-1 rounded-full`}>
+                      {isLoggedIn ? "Member" : "Guest"}
+                    </span>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <Link href="/auth" className="flex items-center">
-                    Sign In
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setShowEmailCapture(true)}>
-                  Get Weekly Updates
-                </DropdownMenuItem>
+                {isLoggedIn ? (
+                  <>
+                    <DropdownMenuItem onClick={() => handleUserLogout()}>
+                      Sign Out
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Link href="/profile" className="flex items-center">
+                        My Profile
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <>
+                    <DropdownMenuItem onClick={() => setIsLoggedIn(true)}>
+                      Sign In
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setShowEmailCapture(true)}>
+                      Get Weekly Updates
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -575,5 +655,6 @@ export default function DashboardPage() {
         </div>
       )}
     </div>
+    </ProtectedRoute>
   );
 }
