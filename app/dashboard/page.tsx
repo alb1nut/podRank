@@ -411,7 +411,7 @@ export default function DashboardPage() {
       {!showAd && (
         <div className="container mx-auto pt-24 pb-10 px-4 sm:px-6">
           <div className="flex flex-col lg:flex-row gap-8">
-            <main className="flex-1">
+            <main className="flex-1 lg:overflow-y-auto lg:h-[calc(100vh-6rem)] lg:pr-4">
               <div className="text-center mb-8">
                 <h1 className="text-3xl font-bold mb-4">What are you looking for today?</h1>
                 <p className="text-muted-foreground">Select your current need and we&apos;ll find the perfect episode for you</p>
@@ -524,7 +524,7 @@ export default function DashboardPage() {
             </main>
 
             <aside className="w-full lg:w-80 shrink-0">
-              <div className="sticky top-24 h-[calc(100vh-6rem)] overflow-y-auto scrollbar-hide hover:scrollbar-default pr-1">
+              <div className="lg:sticky top-24 h-[calc(100vh-6rem)] overflow-y-auto scrollbar-hide hover:scrollbar-default pr-1">
                 <div className="flex items-center space-x-2 mb-6 pr-3">
                   <Award className="h-5 w-5 text-primary" />
                   <h2 className="text-xl font-bold">PodRank&apos;s Pick 🎧</h2>
