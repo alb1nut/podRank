@@ -186,6 +186,7 @@ export default function DashboardPage() {
   const adStartTime = useRef<number>(0);
   const [currentTheme, setCurrentTheme] = useState<string>("");
   const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   // const [userName, setUserName] = useState(""); // Replace with actual user data
     // Calling the hook inside a component
     const { isLoggedIn, setIsLoggedIn,setAuthToken } = useAppUtils();
@@ -305,10 +306,108 @@ export default function DashboardPage() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, []);
 
-  const handleEmailSubmit = (e: React.FormEvent) => {
+  const validateEmail = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  };
+  
+  const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.setItem('emailCaptured', 'true');
-    setShowEmailCapture(false);
+    setIsSubmitting(true);
+    
+    // Validate email format first
+    if (!validateEmail(email)) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Email",
+        description: "Please enter a valid email address",
+      });
+      setIsSubmitting(false);
+      return;
+    }
+  
+    if (!email) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please enter your email address",
+      });
+      setIsSubmitting(false);
+      return;
+    }
+  
+    try {
+      // First check if email already exists
+      const { data: existing, error: lookupError } = await supabase
+        .from('subscribers')
+        .select('email')
+        .eq('email', email)
+        .maybeSingle();
+  
+      if (lookupError) {
+        console.error('Lookup error:', lookupError.message);
+        throw new Error('Failed to check subscription status');
+      }
+  
+      if (existing) {
+        toast({
+          title: "Already Subscribed",
+          description: "This email is already on our list!",
+          variant: "default",
+        });
+      } else {
+        // Insert new subscriber
+        const { error: insertError } = await supabase
+          .from('subscribers')
+          .insert([
+            { 
+              email,
+              user_id: userId || null, // Handle null case
+              subscribed_at: new Date().toISOString(),
+              source: 'dashboard_popup'
+            }
+          ]);
+  
+        if (insertError) {
+          // Handle specific Supabase errors
+          if (insertError.code === '23505') { // Unique constraint violation
+            toast({
+              title: "Already Subscribed",
+              description: "This email is already in our system",
+              variant: "default"
+            });
+          } else {
+            throw new Error(insertError.message || 'Subscription failed');
+          }
+        } else {
+          toast({
+            title: "Success!",
+            description: "You've been subscribed to our newsletter.",
+          });
+        }
+      }
+  
+      localStorage.setItem('emailCaptured', 'true');
+      setShowEmailCapture(false);
+      setEmail("");
+  
+    } catch (error: unknown) {
+      // Only log meaningful errors (skip duplicates)
+      if (error instanceof Error && !error.message?.includes('Already Subscribed')) {
+        console.error('Subscription error:', error.message);
+      }
+      
+      // Only show toast for non-duplicate errors
+      if (error instanceof Error && !error.message?.includes('Already Subscribed')) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: error.message || "Failed to process subscription. Please try again later.",
+        });
+    
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleListenNow = (link: string, platform: string) => {
@@ -486,7 +585,10 @@ export default function DashboardPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
             />
-            <Button type="submit" className="w-full">Get Weekly Updates</Button>
+           <Button type="submit" className="w-full" disabled={isSubmitting}>
+  {isSubmitting ? "Subscribing..." : "Get Weekly Updates"}
+</Button>
+
           </form>
         </DialogContent>
       </Dialog>
