@@ -189,11 +189,10 @@ export default function DashboardPage() {
   // const [userName, setUserName] = useState(""); // Replace with actual user data
     // Calling the hook inside a component
     const { isLoggedIn, setIsLoggedIn,setAuthToken } = useAppUtils();
-    const [userId, setUserId] = useState<string | null>(null)
+    const [userId, setUserId] = useState<string | null>(null);
+    const [userData, setUserData] = useState<{ email: string; name?: string } | null>(null);
 
 
-
-    const userName = isLoggedIn ? "Albert Dovlo" : ""; // Replace with actual user data
     useEffect(()=> {
       const handleLoginSession  = async() =>{
         const {data,error} = await supabase.auth.getSession()
@@ -214,6 +213,10 @@ export default function DashboardPage() {
             console.log('====================================');
             localStorage.setItem("access_token",data.session?.access_token);
             setIsLoggedIn(true);
+            setUserData({
+              email: data.session.user.email || '',
+              name: data.session.user.user_metadata?.full_name
+            });
             toast({
               title: "Success",
               description: "Logged In Successfully",
@@ -240,7 +243,8 @@ export default function DashboardPage() {
     const handleUserLogout = async () =>{
       localStorage.removeItem("access_token");
       setIsLoggedIn(false);
-      setAuthToken(null)
+      setAuthToken(null);
+      setUserData(null);
       await supabase.auth.signOut()
       toast({
         title: "Success",
@@ -356,21 +360,18 @@ export default function DashboardPage() {
             <Headphones className="h-6 w-6 text-primary" />
             
             {/* Animated Welcome Message in Header */}
-            {userName && (
-              <div className="hidden md:flex items-center">
-                <span className="text-sm text-muted-foreground mr-2">Welcome,</span>
-                <div className="welcome-name-container">
-                  {userName.split("").map((letter, index) => (
-                    <span 
-                      key={index}
-                      className="welcome-name-letter"
-                    >
-                      {letter === " " ? "\u00A0" : letter}
-                    </span>
-                  ))}
+            {userData && (
+                <div className="hidden md:flex items-center">
+                  <span className="text-sm text-muted-foreground mr-2">Welcome,</span>
+                  <div className="welcome-name-container">
+                    {userData.name ? userData.name.split("").map((letter, index) => (
+                      <span key={index} className="welcome-name-letter">
+                        {letter === " " ? "\u00A0" : letter}
+                      </span>
+                    )) : userData.email.split("@")[0]}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
           </div>
 
           <div className="flex items-center space-x-4">
@@ -386,11 +387,14 @@ export default function DashboardPage() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>
-                  <div className="flex items-center">
-                    <span className={`bg-primary/10 text-primary text-xs px-2 py-1 rounded-full`}>
-                      {isLoggedIn ? "Member" : "Guest"}
-                    </span>
-                  </div>
+                <div className="flex flex-col">
+                      {userData?.name && (
+                        <span className="font-medium">{userData.name}</span>
+                      )}
+                      <span className="text-xs text-muted-foreground">
+                        {userData?.email}
+                      </span>
+                    </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {isLoggedIn ? (
@@ -406,13 +410,12 @@ export default function DashboardPage() {
                   </>
                 ) : (
                   <>
-                    <DropdownMenuItem onClick={() => setIsLoggedIn(true)}>
+                  <DropdownMenuItem asChild>
+                    <Link href="/login">
                       Sign In
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setShowEmailCapture(true)}>
-                      Get Weekly Updates
-                    </DropdownMenuItem>
-                  </>
+                    </Link>
+                  </DropdownMenuItem>
+                </>
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
