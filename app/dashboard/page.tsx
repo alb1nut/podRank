@@ -8,8 +8,6 @@ import Link from 'next/link';
 import { searchPodcasts } from '@/lib/api';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabaseClient';
-// import {useAppUtils} from "@/context/AppUtils"
-
 import {
   Dialog,
   DialogContent,
@@ -32,7 +30,6 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import { toast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
-
 interface PodcastEpisode {
   id: string;
   title: string;
@@ -43,17 +40,6 @@ interface PodcastEpisode {
   rating: number;
   publisher: string;
   link: string;
-}
-
-interface PodRankPick {
-  id: number;
-  title: string;
-  host: string;
-  thumbnail: string;
-  description: string;
-  platform: string;
-  platformIcon: React.ReactNode;
-  isSponsored?: boolean;
 }
 
 const WEEKLY_THEMES = {
@@ -100,7 +86,7 @@ const SEARCH_BUBBLES = [
   }
 ];
 
-const PODRANK_PICKS: PodRankPick[] = [
+const PODRANK_PICKS = [
   {
     id: 1,
     title: "The Psychology of Success",
@@ -180,84 +166,86 @@ export default function DashboardPage() {
   const [showEmailCapture, setShowEmailCapture] = useState(false);
   const [email, setEmail] = useState("");
   const [canSkipAd, setCanSkipAd] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const adTimer = useRef<NodeJS.Timeout | null>(null);
   const skipTimer = useRef<NodeJS.Timeout | null>(null);
   const forceAdMinTime = useRef(true);
   const adStartTime = useRef<number>(0);
   const [currentTheme, setCurrentTheme] = useState<string>("");
   const router = useRouter();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  // const [userName, setUserName] = useState(""); // Replace with actual user data
-    // Calling the hook inside a component
-    const { isLoggedIn, setIsLoggedIn,setAuthToken } = useAppUtils();
-    const [userId, setUserId] = useState<string | null>(null);
-    const [userData, setUserData] = useState<{ email: string; name?: string } | null>(null);
+  const { isLoggedIn, setIsLoggedIn, setAuthToken } = useAppUtils();
+  const [userId, setUserId] = useState<string | null>(null);
+  const [userData, setUserData] = useState<{ email: string; name?: string } | null>(null);
 
-
-    useEffect(()=> {
-      const handleLoginSession  = async() =>{
-        const {data,error} = await supabase.auth.getSession()
-          if(error){
-            toast({
-              variant: "destructive",
-              title: "Error",
-              description: "Failed to get User Data ",
-            });
-            router.push("/")
-            return;
-          }
-          if(data.session?.access_token){
-            setAuthToken(data.session.access_token);
-            setUserId(data.session.user.id);
-            console.log('====================================');
-            console.log(userId);
-            console.log('====================================');
-            localStorage.setItem("access_token",data.session?.access_token);
-            setIsLoggedIn(true);
-            setUserData({
-              email: data.session.user.email || '',
-              name: data.session.user.user_metadata?.full_name
-            });
-            toast({
-              title: "Success",
-              description: "Logged In Successfully",
-            });
-            router.push("/dashboard"); // Only redirect if logged in
-          }else{
-             // No active session found
-            router.push("/");
-          }
+  useEffect(() => {
+    const handleLoginSession = async () => {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to get User Data ",
+        });
+        router.push("/");
+        return;
       }
+      if (data.session?.access_token) {
+        setAuthToken(data.session.access_token);
+        setUserId(data.session.user.id);
+        localStorage.setItem("access_token", data.session?.access_token);
+        setIsLoggedIn(true);
+        setUserData({
+          email: data.session.user.email || '',
+          name: data.session.user.user_metadata?.full_name
+        });
+        toast({
+          title: "Success",
+          description: "Logged In Successfully",
+        });
+        router.push("/dashboard");
+      } else {
+        router.push("/");
+      }
+    };
 
-      handleLoginSession()
-    },[isLoggedIn,router, setAuthToken, setIsLoggedIn,userId]);
+    handleLoginSession();
+  }, [isLoggedIn, router, setAuthToken, setIsLoggedIn, userId]);
 
-
-    // useEffect(()=>{
-    //   const token = localStorage.getItem("access_token");
-    //   if(token){
-    //     setAuthToken(token)
-    //     setIsLoggedIn(true)
-    //   }
-    // })
-
-    const handleUserLogout = async () =>{
-      localStorage.removeItem("access_token");
-      setIsLoggedIn(false);
-      setAuthToken(null);
-      setUserData(null);
-      await supabase.auth.signOut()
-      toast({
-        title: "Success",
-        description: "Logged Out Successfully",
-      });
-      router.push("/")
-    }
+  const handleUserLogout = async () => {
+    localStorage.removeItem("access_token");
+    setIsLoggedIn(false);
+    setAuthToken(null);
+    setUserData(null);
+    await supabase.auth.signOut();
+    toast({
+      title: "Success",
+      description: "Logged Out Successfully",
+    });
+    router.push("/");
+  };
 
   useEffect(() => {
     const today = new Date().toLocaleDateString('en-us', { weekday: 'long' });
     const dayName = today.split(',')[0];
     setCurrentTheme(WEEKLY_THEMES[dayName as keyof typeof WEEKLY_THEMES]?.name || "");
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (adTimer.current) clearTimeout(adTimer.current);
+      if (skipTimer.current) clearTimeout(skipTimer.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (!localStorage.getItem('emailCaptured')) {
+        setShowEmailCapture(true);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, []);
 
   const handleBubbleClick = async (bubbleId: string) => {
@@ -288,33 +276,14 @@ export default function DashboardPage() {
     }
   };
 
-  useEffect(() => {
-    return () => {
-      if (adTimer.current) clearTimeout(adTimer.current);
-      if (skipTimer.current) clearTimeout(skipTimer.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      if (!localStorage.getItem('emailCaptured')) {
-        setShowEmailCapture(true);
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, []);
-
   const validateEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   };
-  
+
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
-    // Validate email format first
+
     if (!validateEmail(email)) {
       toast({
         variant: "destructive",
@@ -324,7 +293,7 @@ export default function DashboardPage() {
       setIsSubmitting(false);
       return;
     }
-  
+
     if (!email) {
       toast({
         variant: "destructive",
@@ -334,20 +303,18 @@ export default function DashboardPage() {
       setIsSubmitting(false);
       return;
     }
-  
+
     try {
-      // First check if email already exists
       const { data: existing, error: lookupError } = await supabase
         .from('subscribers')
         .select('email')
         .eq('email', email)
         .maybeSingle();
-  
+
       if (lookupError) {
-        console.error('Lookup error:', lookupError.message);
         throw new Error('Failed to check subscription status');
       }
-  
+
       if (existing) {
         toast({
           title: "Already Subscribed",
@@ -355,21 +322,19 @@ export default function DashboardPage() {
           variant: "default",
         });
       } else {
-        // Insert new subscriber
         const { error: insertError } = await supabase
           .from('subscribers')
           .insert([
-            { 
+            {
               email,
-              user_id: userId || null, // Handle null case
+              user_id: userId || null,
               subscribed_at: new Date().toISOString(),
               source: 'dashboard_popup'
             }
           ]);
-  
+
         if (insertError) {
-          // Handle specific Supabase errors
-          if (insertError.code === '23505') { // Unique constraint violation
+          if (insertError.code === '23505') {
             toast({
               title: "Already Subscribed",
               description: "This email is already in our system",
@@ -385,25 +350,19 @@ export default function DashboardPage() {
           });
         }
       }
-  
+
       localStorage.setItem('emailCaptured', 'true');
       setShowEmailCapture(false);
       setEmail("");
-  
+
     } catch (error: unknown) {
-      // Only log meaningful errors (skip duplicates)
       if (error instanceof Error && !error.message?.includes('Already Subscribed')) {
         console.error('Subscription error:', error.message);
-      }
-      
-      // Only show toast for non-duplicate errors
-      if (error instanceof Error && !error.message?.includes('Already Subscribed')) {
         toast({
           variant: "destructive",
           title: "Error",
           description: error.message || "Failed to process subscription. Please try again later.",
         });
-    
       }
     } finally {
       setIsSubmitting(false);
@@ -414,10 +373,8 @@ export default function DashboardPage() {
     try {
       let affiliateUrl = link;
       
-      // Only modify if it's not already an affiliate link
       if (!link.includes('?ref=podrank')) {
         if (platform.toLowerCase() === 'spotify') {
-          // Extract episode ID from various Spotify URL formats
           const episodeId = link.includes('episode/')
             ? link.split('episode/')[1]?.split('?')[0]
             : link.split('spotify:episode:')[1];
@@ -425,7 +382,6 @@ export default function DashboardPage() {
           affiliateUrl = `${AFFILIATE_BASE_URLS.spotify}episode/${episodeId}?ref=podrank`;
         } 
         else if (platform.toLowerCase() === 'youtube') {
-          // Extract video ID from various YouTube URL formats
           const videoId = link.includes('v=')
             ? link.split('v=')[1]?.split('&')[0]
             : link.includes('youtu.be/')
@@ -439,7 +395,6 @@ export default function DashboardPage() {
       window.open(affiliateUrl, '_blank', 'noopener,noreferrer');
     } catch (error) {
       console.error('Error constructing affiliate link:', error);
-      // Fallback to original link if something goes wrong
       window.open(link, '_blank', 'noopener,noreferrer');
     }
   };
@@ -452,14 +407,13 @@ export default function DashboardPage() {
 
   return (
     <ProtectedRoute>
-    <div className="min-h-screen bg-background overflow-x-hidden">
-      <header className="fixed top-0 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <div className="flex items-center space-x-4">
-            <Headphones className="h-6 w-6 text-primary" />
-            
-            {/* Animated Welcome Message in Header */}
-            {userData && (
+      <div className="min-h-screen bg-background overflow-x-hidden">
+        <header className="fixed top-0 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50">
+          <div className="container mx-auto flex h-16 items-center justify-between px-4">
+            <div className="flex items-center space-x-4">
+              <Headphones className="h-6 w-6 text-primary" />
+              
+              {userData && (
                 <div className="hidden md:flex items-center">
                   <span className="text-sm text-muted-foreground mr-2">Welcome,</span>
                   <div className="welcome-name-container">
@@ -471,22 +425,22 @@ export default function DashboardPage() {
                   </div>
                 </div>
               )}
-          </div>
+            </div>
 
-          <div className="flex items-center space-x-4">
-            <Button variant="ghost" className="text-sm" onClick={() => setShowEmailCapture(true)}>
-              <Bell className="h-4 w-4 mr-2" />
-              Get Notified
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <ChevronDown className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>
-                <div className="flex flex-col">
+            <div className="flex items-center space-x-4">
+              <Button variant="ghost" className="text-sm" onClick={() => setShowEmailCapture(true)}>
+                <Bell className="h-4 w-4 mr-2" />
+                Get Notified
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>
+                    <div className="flex flex-col">
                       {userData?.name && (
                         <span className="font-medium">{userData.name}</span>
                       )}
@@ -494,230 +448,228 @@ export default function DashboardPage() {
                         {userData?.email}
                       </span>
                     </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {isLoggedIn ? (
-                  <>
-                    <DropdownMenuItem onClick={() => handleUserLogout()}>
-                      Sign Out
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Link href="/profile" className="flex items-center">
-                        My Profile
-                      </Link>
-                    </DropdownMenuItem>
-                  </>
-                ) : (
-                  <>
-                  <DropdownMenuItem asChild>
-                    <Link href="/login">
-                      Sign In
-                    </Link>
-                  </DropdownMenuItem>
-                </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {isLoggedIn ? (
+                    <>
+                      <DropdownMenuItem onClick={() => handleUserLogout()}>
+                        Sign Out
+                      </DropdownMenuItem>
+                      <DropdownMenuItem>
+                        <Link href="/profile" className="flex items-center">
+                          My Profile
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  ) : (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link href="/login">
+                          Sign In
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {currentTheme && (
-        <div className={`w-full py-2 text-center text-black ${WEEKLY_THEMES[currentTheme.split(' ')[0] as keyof typeof WEEKLY_THEMES]?.color} mt-16`}>
-          {currentTheme} - Discover Today&apos;s Special Picks! 🎧
-        </div>
-      )}
+        {currentTheme && (
+          <div className={`w-full py-2 text-center text-black ${WEEKLY_THEMES[currentTheme.split(' ')[0] as keyof typeof WEEKLY_THEMES]?.color} mt-16`}>
+            {currentTheme} - Discover Today&apos;s Special Picks! 🎧
+          </div>
+        )}
 
-      {showAd && (
-        <div className="fixed inset-0 bg-background/95 z-50 flex items-center justify-center">
-          <div className="max-w-md w-full bg-white rounded-xl shadow-2xl overflow-hidden border border-gray-200 animate-in fade-in">
-            <div className="relative aspect-video bg-gray-100">
-              <Image
-                loader={customLoader}
-                src="https://images.unsplash.com/photo-1589561253898-768105ca91a8?w=800&auto=format&fit=crop&q=60"
-                alt="Sponsored Content"
-                fill
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                className="object-cover"
-                priority
-              />
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-                <span className="text-white text-sm font-medium">Finding your perfect podcast...</span>
-                <CountdownTimer 
-                  startTime={adStartTime.current} 
-                  duration={15000}
-                  onComplete={() => setShowAd(false)}
+        {showAd && (
+          <div className="fixed inset-0 bg-background/95 z-50 flex items-center justify-center">
+            <div className="max-w-md w-full bg-white rounded-xl shadow-2xl overflow-hidden border border-gray-200 animate-in fade-in">
+              <div className="relative aspect-video bg-gray-100">
+                <Image
+                  loader={customLoader}
+                  src="https://images.unsplash.com/photo-1589561253898-768105ca91a8?w=800&auto=format&fit=crop&q=60"
+                  alt="Sponsored Content"
+                  fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  className="object-cover"
+                  priority
                 />
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+                  <span className="text-white text-sm font-medium">Finding your perfect podcast...</span>
+                  <CountdownTimer 
+                    startTime={adStartTime.current} 
+                    duration={15000}
+                    onComplete={() => setShowAd(false)}
+                  />
+                </div>
+                {canSkipAd && (
+                  <Button
+                    className="absolute top-4 right-4 bg-black/50 hover:bg-black/70 text-white"
+                    onClick={() => setShowAd(false)}
+                  >
+                    Skip Ad
+                  </Button>
+                )}
               </div>
-              {canSkipAd && (
-                <Button
-                  className="absolute top-4 right-4 bg-black/50 hover:bg-black/70 text-white"
-                  onClick={() => setShowAd(false)}
-                >
-                  Skip Ad
-                </Button>
-              )}
-            </div>
-            <div className="p-6 text-center space-y-4">
-              <h3 className="text-xl font-bold">Download Our Business Podcast Cheat Sheet</h3>
-              <p className="text-muted-foreground">
-                Get our curated list of top business podcasts while we find your perfect match!
-              </p>
-              <Button className="w-full">Download Now</Button>
+              <div className="p-6 text-center space-y-4">
+                <h3 className="text-xl font-bold">Download Our Business Podcast Cheat Sheet</h3>
+                <p className="text-muted-foreground">
+                  Get our curated list of top business podcasts while we find your perfect match!
+                </p>
+                <Button className="w-full">Download Now</Button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <Dialog open={showEmailCapture} onOpenChange={setShowEmailCapture}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Want the top business podcast pick in your inbox every Monday?</DialogTitle>
-            <DialogDescription>
-              Join thousands of professionals getting weekly podcast recommendations
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleEmailSubmit} className="space-y-4">
-            <Input
-              type="email"
-              placeholder="Enter your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-           <Button type="submit" className="w-full" disabled={isSubmitting}>
-  {isSubmitting ? "Subscribing..." : "Get Weekly Updates"}
-</Button>
+        <Dialog open={showEmailCapture} onOpenChange={setShowEmailCapture}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Want the top business podcast pick in your inbox every Monday?</DialogTitle>
+              <DialogDescription>
+                Join thousands of professionals getting weekly podcast recommendations
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleEmailSubmit} className="space-y-4">
+              <Input
+                type="email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? "Subscribing..." : "Get Weekly Updates"}
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
 
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {!showAd && (
-        <div className="container mx-auto pt-24 pb-10 px-4 sm:px-6">
-          <div className="flex flex-col lg:flex-row gap-8">
-            <main className="flex-1 lg:overflow-y-auto lg:h-[calc(100vh-6rem)] lg:pr-4">
-              <div className="text-center mb-8">
-                <h1 className="text-3xl font-bold mb-4">What are you looking for today?</h1>
-                <p className="text-muted-foreground">Select your current need and we&apos;ll find the perfect episode for you</p>
-              </div>
-
-              <div className="flex flex-wrap justify-center gap-4 mb-12">
-                {SEARCH_BUBBLES.map((bubble) => (
-                  <Button
-                    key={bubble.id}
-                    className={`bubble-button text-white ${bubble.color} ${
-                      selectedBubble === bubble.id ? 'ring-4 ring-offset-2' : ''
-                    }`}
-                    style={{ '--delay': bubble.delay } as React.CSSProperties}
-                    onClick={() => handleBubbleClick(bubble.id)}
-                    disabled={isLoading}
-                  >
-                    {bubble.icon}
-                    {bubble.label}
-                  </Button>
-                ))}
-              </div>
-
-              <div className="text-center mb-8">
-                <Button variant="outline" onClick={() => setShowEmailCapture(true)}>
-                  Get a weekly podcast prescription →
-                </Button>
-              </div>
-
-              {error && (
-                <div className="text-center text-red-500 mt-8">
-                  {error}
+        {!showAd && (
+          <div className="container mx-auto pt-24 pb-10 px-4 sm:px-6">
+            <div className="flex flex-col lg:flex-row gap-8">
+              <main className="flex-1 lg:overflow-y-auto lg:h-[calc(100vh-6rem)] lg:pr-4">
+                <div className="text-center mb-8">
+                  <h1 className="text-3xl font-bold mb-4">What are you looking for today?</h1>
+                  <p className="text-muted-foreground">Select your current need and we&apos;ll find the perfect episode for you</p>
                 </div>
-              )}
 
-              {!isLoading && !error && episodes.length > 0 && (
-                <div className="space-y-6">
-                  {episodes.map((episode) => (
-                    <div key={episode.id} className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary/5 via-primary/10 to-primary/5 p-1">
-                      <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-transparent opacity-20 blur-3xl"></div>
-                      <Card className="relative overflow-hidden backdrop-blur-sm border-0 bg-white/80">
-                        <CardContent className="p-0">
-                          <div className="grid md:grid-cols-2">
-                            <div className="relative aspect-video">
-                              <div className="absolute inset-0 bg-gradient-to-br from-black/20 to-transparent z-10"></div>
-                              <Image 
-                                src={`https://i.ytimg.com/vi/${episode.id}/hqdefault.jpg`}
-                                alt={episode.title}
-                                width={1200} 
-                                height={630} 
-                                className="w-full h-full object-cover"
-                                loader={customLoader} // Optional if configured in next.config.js
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).src = '/default-podcast.jpg';
-                                }}
-                                unoptimized
-                              />
-                              <div className="absolute top-4 left-4 z-20 flex items-center space-x-2 bg-black/40 rounded-full px-3 py-1 text-white">
-                                {getPlatformIcon(episode.platform)}
-                                <span className="text-sm">{episode.platform}</span>
-                              </div>
-                            </div>
-                            <div className="p-8 flex flex-col justify-between bg-gradient-to-br from-white/95 to-white/50">
-                              <div>
-                                <div className="flex items-center space-x-2 mb-4">
-                                  <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium">
-                                    {episode.topic}
-                                  </span>
-                                  <span className="flex items-center text-yellow-500">
-                                    ⭐ {episode.rating}
-                                  </span>
-                                </div>
-                                <h3 className="text-2xl font-bold mb-3">{episode.title}</h3>
-                                <p className="text-muted-foreground mb-6">{episode.description}</p>
-                                <div className="flex items-center space-x-3">
-                                  <div className="p-2 rounded-full bg-primary/10">
-                                    <Users className="h-5 w-5 text-primary" />
-                                  </div>
-                                  <div>
-                                    <p className="text-sm text-muted-foreground">Publisher</p>
-                                    <p className="font-medium">{episode.publisher}</p>
-                                  </div>
-                                </div>
-                              </div>
-                              <Button 
-                                className="mt-6 bg-primary hover:bg-primary/90 w-full"
-                                onClick={() => handleListenNow(episode.link, episode.platform)}
-                              >
-                                <Play className="h-4 w-4 mr-2" /> Listen Now
-                              </Button>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
+                <div className="flex flex-wrap justify-center gap-4 mb-12">
+                  {SEARCH_BUBBLES.map((bubble) => (
+                    <Button
+                      key={bubble.id}
+                      className={`bubble-button text-white ${bubble.color} ${
+                        selectedBubble === bubble.id ? 'ring-4 ring-offset-2' : ''
+                      }`}
+                      style={{ '--delay': bubble.delay } as React.CSSProperties}
+                      onClick={() => handleBubbleClick(bubble.id)}
+                      disabled={isLoading}
+                    >
+                      {bubble.icon}
+                      {bubble.label}
+                    </Button>
                   ))}
                 </div>
-              )}
 
-              {!isLoading && !error && selectedBubble && episodes.length === 0 && (
-                <div className="text-center text-muted-foreground mt-8">
-                  No podcasts found for your selection. Try another category!
+                <div className="text-center mb-8">
+                  <Button variant="outline" onClick={() => setShowEmailCapture(true)}>
+                    Get a weekly podcast prescription →
+                  </Button>
                 </div>
-              )}
 
-              {!selectedBubble && !isLoading && (
-                <div className="text-center text-muted-foreground mt-8">
-                  👆 Select what you&apos;re looking for above to get started
-                </div>
-              )}
-            </main>
+                {error && (
+                  <div className="text-center text-red-500 mt-8">
+                    {error}
+                  </div>
+                )}
 
-            <aside className="w-full lg:w-80 shrink-0">
-              <div className="lg:sticky top-24 h-[calc(100vh-6rem)] overflow-y-auto scrollbar-hide hover:scrollbar-default pr-1">
-                <div className="flex items-center space-x-2 mb-6 pr-3">
-                  <Award className="h-5 w-5 text-primary" />
-                  <h2 className="text-xl font-bold">PodRank&apos;s Pick 🎧</h2>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4 pr-3 pb-4">
-                  {PODRANK_PICKS.map((pick) => (
-                    <Link href={`/episode/${pick.id}`} key={pick.id}>
-                      <Card className={`group overflow-hidden transition-all duration-300 hover:ring-2 hover:ring-primary/20 hover:shadow-lg h-full ${
+                {!isLoading && !error && episodes.length > 0 && (
+                  <div className="space-y-6">
+                    {episodes.map((episode) => (
+                      <div key={episode.id} className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary/5 via-primary/10 to-primary/5 p-1">
+                        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-transparent opacity-20 blur-3xl"></div>
+                        <Card className="relative overflow-hidden backdrop-blur-sm border-0 bg-white/80">
+                          <CardContent className="p-0">
+                            <div className="grid md:grid-cols-2">
+                              <div className="relative aspect-video">
+                                <div className="absolute inset-0 bg-gradient-to-br from-black/20 to-transparent z-10"></div>
+                                <Image 
+                                  src={`https://i.ytimg.com/vi/${episode.id}/hqdefault.jpg`}
+                                  alt={episode.title}
+                                  width={1200} 
+                                  height={630} 
+                                  className="w-full h-full object-cover"
+                                  loader={customLoader}
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src = '/default-podcast.jpg';
+                                  }}
+                                  unoptimized
+                                />
+                                <div className="absolute top-4 left-4 z-20 flex items-center space-x-2 bg-black/40 rounded-full px-3 py-1 text-white">
+                                  {getPlatformIcon(episode.platform)}
+                                  <span className="text-sm">{episode.platform}</span>
+                                </div>
+                              </div>
+                              <div className="p-8 flex flex-col justify-between bg-gradient-to-br from-white/95 to-white/50">
+                                <div>
+                                  <div className="flex items-center space-x-2 mb-4">
+                                    <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium">
+                                      {episode.topic}
+                                    </span>
+                                    <span className="flex items-center text-yellow-500">
+                                      ⭐ {episode.rating}
+                                    </span>
+                                  </div>
+                                  <h3 className="text-2xl font-bold mb-3">{episode.title}</h3>
+                                  <p className="text-muted-foreground mb-6">{episode.description}</p>
+                                  <div className="flex items-center space-x-3">
+                                    <div className="p-2 rounded-full bg-primary/10">
+                                      <Users className="h-5 w-5 text-primary" />
+                                    </div>
+                                    <div>
+                                      <p className="text-sm text-muted-foreground">Publisher</p>
+                                      <p className="font-medium">{episode.publisher}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                                <Button 
+                                  className="mt-6 bg-primary hover:bg-primary/90 w-full"
+                                  onClick={() => handleListenNow(episode.link, episode.platform)}
+                                >
+                                  <Play className="h-4 w-4 mr-2" /> Listen Now
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {!isLoading && !error && selectedBubble && episodes.length === 0 && (
+                  <div className="text-center text-muted-foreground mt-8">
+                    No podcasts found for your selection. Try another category!
+                  </div>
+                )}
+
+                {!selectedBubble && !isLoading && (
+                  <div className="text-center text-muted-foreground mt-8">
+                    👆 Select what you&apos;re looking for above to get started
+                  </div>
+                )}
+              </main>
+
+              <aside className="w-full lg:w-80 shrink-0">
+                <div className="lg:sticky top-24 h-[calc(100vh-6rem)] overflow-y-auto scrollbar-hide hover:scrollbar-default pr-1">
+                  <div className="flex items-center space-x-2 mb-6 pr-3">
+                    <Award className="h-5 w-5 text-primary" />
+                    <h2 className="text-xl font-bold">PodRank&apos;s Pick 🎧</h2>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4 pr-3 pb-4">
+                    {PODRANK_PICKS.map((pick) => (
+                      <Card key={pick.id} className={`group overflow-hidden transition-all duration-300 hover:ring-2 hover:ring-primary/20 hover:shadow-lg h-full ${
                         pick.isSponsored ? 'border-2 border-primary' : ''
                       }`}>
                         <CardContent className="p-4">
@@ -751,15 +703,14 @@ export default function DashboardPage() {
                           </div>
                         </CardContent>
                       </Card>
-                    </Link>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </aside>
+              </aside>
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
     </ProtectedRoute>
   );
 }
