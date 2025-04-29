@@ -32,18 +32,25 @@ const EPISODES = [
   }
 ]
 
-// This is needed for static generation
+// This ensures all possible episode IDs are generated at build time
 export async function generateStaticParams() {
   return EPISODES.map((episode) => ({
     id: episode.id,
   }))
 }
 
-// Make this an async function and return serializable data
-export default async function EpisodePage({ params }: { params: { id: string } }) {
-  // Find the episode by ID
-  const episode = EPISODES.find(ep => ep.id === params.id) || EPISODES[0]
+// Type for page props
+type PageProps = {
+  params: {
+    id: string;
+  };
+};
+
+// The page component with proper typing and async handling
+export default async function EpisodePage({ params }: PageProps) {
+  // Find the episode by ID or fallback to first episode
+  const episode = EPISODES.find(ep => ep.id === params.id) || EPISODES[0];
   
-  // Return a serializable object
-  return <EpisodeClient episode={episode} />
+  // Return the client component with serializable data
+  return <EpisodeClient episode={episode} />;
 }
