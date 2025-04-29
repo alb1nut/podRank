@@ -32,13 +32,18 @@ const EPISODES = [
   }
 ]
 
-export function generateStaticParams() {
+// This is needed for static generation
+export async function generateStaticParams() {
   return EPISODES.map((episode) => ({
     id: episode.id,
   }))
 }
 
-export default function EpisodePage() {
-  const episode = EPISODES[0]
+// Make this an async function and return serializable data
+export default async function EpisodePage({ params }: { params: { id: string } }) {
+  // Find the episode by ID
+  const episode = EPISODES.find(ep => ep.id === params.id) || EPISODES[0]
+  
+  // Return a serializable object
   return <EpisodeClient episode={episode} />
 }
